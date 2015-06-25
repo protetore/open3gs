@@ -1,0 +1,15 @@
+#!/bin/bash
+
+OP=oi
+
+typeset -A array
+apn[oi]=gprs.oi.com.br
+apn[claro]=bandalarga.claro.com.br
+apn[tim]=tim.br
+apn[vivo]=zap.vivo.com.br
+
+/usr/sbin/pppd -d /dev/ttyUSB0 460800 noauth persist defaultroute noipdefault usepeerdns nodeflate refuse-pap user $OPE password $OPE connect "/usr/bin/chat -v TIMEOUT 300 ABORT \"BUSY\" ABORT \"NO DIALTONE\" ABORT \"NO CARRIER\" \"\" ATZ OK AT+cfun=1 OK AT+CGDCONT=1,\"IP\",\"${apn[$OPE]}\" -T ATDT*99# CONNECT \"\""
+
+sleep 5;
+
+/usr/bin/wvdial -C /specta/3g/$OPE.conf

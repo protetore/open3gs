@@ -1,0 +1,19 @@
+[Unit]
+Description=Networking service for 3G connection
+Before=network.target
+Wants=network.target
+#BindsTo=dev-ttyUSB0.device
+#After=dev-ttyUSB0.device
+BindsTo=dev-gsmmodem.device
+After=dev-gsmmodem.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+#ExecStart=/usr/bin/wvdial -C /specta/3g/default.conf
+ExecStart=/specta/sripts/3g/3gsrv.sh
+ExecStop=-/usr/bin/wvdial
+KillMode=none
+
+[Install]
+WantedBy=multi-user.target

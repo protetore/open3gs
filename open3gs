@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Open3G Shell Version
+# title           :open3gs
+# file            :open3gs
+# description     :This script will handle 3g connections
+# author          :protetore
+# date            :20150620
+# version         :0.1
+# usage           :bash open3gs [operator|status|setup] [-r]
+# bash_version    :4.1.5(1)-release
+#=============================================================
+
+BASE_DIR=$(dirname $(/bin/readlink -f $0))
+#. $BASE_DIR/variables.sh
+. $BASE_DIR/functions.sh
+
+$ECHO
+$ECHO "~~~ Open3G Shell Connector ~~~"
+$ECHO
+
+# Options
+case "$1" in
+    status)
+        status
+        retval=$?
+        ;;
+    start)
+        connect
+        retval=$?
+        ;;
+    stop)
+        disconnect
+        retval=$?
+        ;;
+    restart)
+        reconnect
+        retval=$?
+        ;;
+    setup)
+        setup
+        retval=$?
+        ;;
+    help)
+        usage
+        retval=1
+        ;;
+    *)
+        connStart
+        retval=$?
+esac
+
+$ECHO
