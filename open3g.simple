@@ -12,4 +12,5 @@ apn[vivo]=zap.vivo.com.br
 
 sleep 5;
 
+killall -9 pppd
 /usr/bin/wvdial -C /specta/3g/$OPE.conf

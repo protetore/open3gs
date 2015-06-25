@@ -1,1 +1,1 @@
-KERNEL=="ttyUSB*", SYMLINK=="gsmmodem", TAG+="systemd", ENV{SYSTEMD_WANTS}="3g.service" 
+KERNEL=="ttyUSB*", SYMLINK=="gsmmodem", TAG+="systemd", ENV{SYSTEMD_WANTS}="open3gs.service" 

@@ -10,8 +10,8 @@ After=dev-gsmmodem.device
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-#ExecStart=/usr/bin/wvdial -C /specta/3g/default.conf
-ExecStart=/specta/sripts/3g/3gsrv.sh
+#ExecStart=/usr/bin/wvdial -C /specta/open3gs/default.conf
+ExecStart=/specta/open3gs/open3gs
 ExecStop=-/usr/bin/wvdial
 KillMode=none
 
