@@ -33,7 +33,21 @@ checkDependencies()
 checkModem()
 {
     # Find where modem is
-    $MODEM=/dev/ttyUSB0
+    attachedDevice=$(dmesg | $GREP GSM | $GREP attached | $AWK '{ print $12 }' | $HEAD -1)
+    if [ "$attachedDevice" == "" ];
+    then
+        $ECHO "ERROR: Modem not found. (1)";
+        return 1;
+    fi
+
+    if [ ! -f "/dev/$attachedDevice" ];
+    then
+        $ECHO "ERROR: Modem not found. (2)";
+        return 1;
+    fi
+
+    $ECHO "INFO: Modem found in /dev/$attachedDevice"
+    MODEM=/dev/$attachedDevice
 
     # Connect to the modem and capture the apn
     # Listen to its output
@@ -48,7 +62,7 @@ checkModem()
 
     if [ "$apnCode" == "" ];
     then
-        $ECHO "ERROR: APN could not be detected! Modem sent an empty reply."
+        $ECHO "ERROR: APN could not be detected! Modem sent an empty reply.";
         return 1;
     fi
 
@@ -56,7 +70,7 @@ checkModem()
 
     if [ "$confFile" == "" ];
     then
-        $ECHO "ERROR: No config file for APN: $apnCode"
+        $ECHO "ERROR: No config file for APN: $apnCode in $BASE_DIR/$PROVIDERS_DIR/";
         return 1;
     fi
 
@@ -72,7 +86,7 @@ readConf()
 
     if [ ! -f $BASE_DIR/$PROVIDERS_DIR/$OP.conf ];
     then
-        $ECHO "Config file $BASE_DIR/$PROVIDERS_DIR/$OP.conf not found!"
+        $ECHO "ERROR: Config file $BASE_DIR/$PROVIDERS_DIR/$OP.conf not found!"
         exit 1;
     fi
 
@@ -91,33 +105,51 @@ readConf()
 
     if [ $APN == "" ];
     then
-        $ECHO "No APN (apn url) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No APN (apn url) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
         retval=1
     fi
 
     if [ $USR == "" ];
     then
-        $ECHO "No USR (user) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No USR (user) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
         retval=1
     fi
 
     if [ $PWD == "" ];
     then
-        $ECHO "No PWD (password) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No PWD (password) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
         retval=1
     fi
 
     if [ $ATD == "" ];
     then
-        $ECHO "No ATD (phone to dial) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No ATD (phone to dial) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
         retval=1
     fi
 
     if [ $COD == "" ];
     then
-        $ECHO "No COD (operator code) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No COD (operator code) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
         retval=1
     fi
+
+    if [ ! -f $BASE_DIR/$CONF_DIR/pppd.conf ];
+    then
+        $ECHO "ERROR: PPPD config file $BASE_DIR/$CONF_DIR/pppd.conf not found!"
+        exit 1;
+    fi
+
+    PPP_OPTS=$($CAT $BASE_DIR/$CONF_DIR/pppd.conf | $TR '\n' ' ')
+    PPP_OPTS=$($ECHO $PPP_OPTS | $SED "s|__MODEM__|$MODEM|g" | $SED "s/__USR__/$USR/g" | $SED "s/__PWD__/$PWD/g")
+
+    if [ ! -f $BASE_DIR/$CONF_DIR/chat.conf ];
+    then
+        $ECHO "ERROR: CHAT config file $BASE_DIR/$CONF_DIR/chat.conf not found!"
+        exit 1;
+    fi
+
+    CHAT_OPTS=$($CAT $BASE_DIR/$CONF_DIR/chat.conf | $TR '\n' ' ')
+    CHAT_OPTS=$($ECHO $CHAT_OPTS | $SED "s/__APN__/$APN/g" | $SED "s/__PHN__/$ATD/g")
 
     return $retval;
 }
@@ -131,7 +163,7 @@ setup()
     $ECHO "@ Checking scripts..."
     if [ "$0" == "/usr/bin/open3gs" ];
     then
-            echo "Setup function must be called from the sh script not from the link in /usr/bin/"
+            echo "ERROR: Setup function must be called from the sh script not from the link in /usr/bin/"
             echo "Call: $BASE_DIR/open3gs setup"
             exit 1
     fi
