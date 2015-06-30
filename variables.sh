@@ -2,6 +2,7 @@
 
 PROVIDERS_DIR="providers.d"
 CONF_DIR="conf.d"
+WVDIAL_DIR="wvdial.d"
 DEPENDENCIES=(wvdial,pppd,usb_modeswitch,chat)
 LOG_DIR=/var/log/open3gs
 
@@ -21,5 +22,8 @@ RM=$(/usr/bin/which rm)
 PRINTF=$(/usr/bin/which printf)
 LN=$(/usr/bin/which ln)
 TR=$(/usr/bin/which tr)
+MKDIR=$(/usr/bin/which mkdir)
 CHAT=$(/usr/bin/which chat)
 KILLALL=$(/usr/bin/which killall)
+WVDIAL=$(/usr/bin/which wvdial)
+PPPD=$(/usr/bin/which pppd)

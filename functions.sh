@@ -30,7 +30,7 @@ checkDependencies()
     return $retval
 }
 
-checkModem()
+modemAttached()
 {
     # Find where modem is
     attachedDevice=$(dmesg | $GREP GSM | $GREP attached | $AWK '{ print $12 }' | $HEAD -1)
@@ -41,6 +41,25 @@ checkModem()
     fi
 
     if [ ! -f "/dev/$attachedDevice" ];
+    then
+        $ECHO "ERROR: Modem not found. (2)";
+        return 1;
+    fi
+
+    return 0;
+}
+
+checkModem()
+{
+    # Find where modem is
+    attachedDevice=$(dmesg | $GREP GSM | $GREP attached | $AWK '{ print $12 }' | $HEAD -1)
+    if [ "$attachedDevice" == "" ];
+    then
+        $ECHO "ERROR: Modem not found. (1)";
+        return 1;
+    fi
+
+    if [ ! -c "/dev/$attachedDevice" ];
     then
         $ECHO "ERROR: Modem not found. (2)";
         return 1;
@@ -80,9 +99,20 @@ checkModem()
     return 0;
 }
 
-readConf()
+reconfigure()
 {
     retval=0
+
+    $ECHO "@ Checking modem..."
+    checkModem
+    if [ "$?" == "1" ];
+    then
+        exit 1
+    fi
+
+    $RM -f $BASE_DIR/$WVDIAL_DIR/default.conf
+    $RM -f $BASE_DIR/$CONF_DIR/chat_default.conf
+    $RM -f $BASE_DIR/$CONF_DIR/ppp_default.conf
 
     if [ ! -f $BASE_DIR/$PROVIDERS_DIR/$OP.conf ];
     then
@@ -151,6 +181,42 @@ readConf()
     CHAT_OPTS=$($CAT $BASE_DIR/$CONF_DIR/chat.conf | $TR '\n' ' ')
     CHAT_OPTS=$($ECHO $CHAT_OPTS | $SED "s/__APN__/$APN/g" | $SED "s/__PHN__/$ATD/g")
 
+    $ECHO $CHAT_OPTS > $BASE_DIR/$CONF_DIR/chat_default.conf
+    $ECHO $PPP_OPTS > $BASE_DIR/$CONF_DIR/ppp_default.conf
+
+    if [ ! -f $BASE_DIR/$WVDIAL_DIR/template.conf ];
+    then
+        $ECHO "INFO: No template found. Using default settings..."
+
+        # $CAT > $BASE_DIR/$WVDIAL_DIR/template.conf <<- END_CFG
+        #     [Dialer Defaults]
+        #     Init1 = ATZ
+        #     Init2 = ATQ0 V1 E1 S0=0 &C1 &D2 +FCLASS=0
+        #     Init3 = AT+CGDCONT=1,"IP","__APN__"
+        #     Modem Type = Analog Modem
+        #     Phone = __ATD__
+        #     ISDN = 0
+        #     Username = __USR__
+        #     Password = __PWD__
+        #     Modem = __MODEM__
+        #     Baud = 460800
+        #     New PPPD = yes
+        #     Stupid Mode = yes
+        #     DialCommand = ATDT
+        #     Check Def Route = on
+        #     FlowControl = Hardware(CRTSCTS)
+        #     Auto Reconnect = on
+        #     Auto DNS = on
+        #     Abort on Busy = off
+        #     Carrier Check = off
+        #     Abort on No Dialtone = off
+        #     END_CFG
+    fi
+
+    WVDIAL_OPTS=$($CAT $BASE_DIR/$WVDIAL_DIR/template.conf)
+    WVDIAL_OPTS=$($ECHO $WVDIAL_OPTS | $SED "s|__MODEM__|$MODEM|g" | $SED "s/__USR__/$USR/g" | $SED "s/__PWD__/$PWD/g" | $SED "s/__APN__/$APN/g" | $SED "s/__ATD__/$ATD/g")
+    $ECHO $WVDIAL_OPTS > $BASE_DIR/$WVDIAL_DIR/default.conf;
+
     return $retval;
 }
 
@@ -158,7 +224,12 @@ setup()
 {
     $ECHO "@ SETUP"
     $ECHO "@ Checking dependencies..."
-    if [ ! checkDependencies ]; then exit 1 fi
+
+    checkDependencies
+    if [ "$?" == "1" ];
+    then
+        exit 1
+    fi
 
     $ECHO "@ Checking scripts..."
     if [ "$0" == "/usr/bin/open3gs" ];
@@ -177,15 +248,15 @@ setup()
                 $RM -f /etc/logrotate.d/open3gs
         fi
 
-        $CAT > /etc/logrotate.d/open3gs <<- END_CFG
-            $LOG_DIR/*log {
-                missingok
-                notifempty
-                size 30k
-                monthly
-                create 0600 root root
-            }
-            END_CFG
+        # $CAT > /etc/logrotate.d/open3gs <<- END_CFG
+        #     $LOG_DIR/*log {
+        #         missingok
+        #         notifempty
+        #         size 30k
+        #         monthly
+        #         create 0600 root root
+        #     }
+        #     END_CFG
     else
             $ECHO "INFO: Logrotate not found. Log will grow without supervision in $LOG_DIR"
     fi
@@ -205,6 +276,13 @@ setup()
             $LN -s $SCRIPT_PATH /usr/bin/open3gs
     fi
 
+    $ECHO "@ Detectiong modem and configuring defaut settings..."
+    reconfigure
+    if [ "$?" == "1" ];
+    then
+        exit 1
+    fi
+
     $ECHO "@ Finished configuring Open3Gs."
     $ECHO
     usage
@@ -212,21 +290,60 @@ setup()
 
 connect()
 {
-    if [ ! checkDependencies ]; then exit 1 fi
+    checkDependencies
+    if [ "$?" == "1" ];
+    then
+        exit 1
+    fi
 
-    if [ ! checkModem ];  then exit 1 fi
+    #checkModem
+    #if [ ! $? ];
+    #then
+    #    exit 1
+    #fi
 
-    if [ ! readConf ]; then exit 1 fi
+    if [ "$1" == "1" ];
+    then
+        reconfigure
+        if [ ! $? ];
+        then
+            exit 1
+        fi
+    fi
+
+    if [ ! -f $BASE_DIR/$WVDIAL_DIR/default.conf ];
+    then
+        $ECHO "INFO: No default config file found. Run 'open3gs -r' or 'open3gs -i'."
+    else
+        $ECHO "INFO: Using default wvdial file. You can reconfigure with 'open3gs -r'."
+    fi
+
+    $ECHO "@ Activating modem..."
+    $chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
+    $pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
+
+    $PPPD $pppdOpts "$chatOpts"
+    sleep 3
+    $KILLALL -9 pppd
+
+    $ECHO "@ Dialing..."
+    nohup $WVDIAL -C $BASE_DIR/$WVDIAL_DIR/default.conf > $LOG_DIR/open3gs.log 2>&1 &
+
+    $ECHO "@ Connection active. Output can be found in $LOG_DIR/open3gs.log"
 }
 
 disconnect()
 {
-
+    $ECHO "@ Stopping active connection..."
+    $KILLALL -9 wvdial
+    $KILLALL -9 pppd
 }
 
 reconnect()
 {
-
+    disconnect
+    sleep 1
+    reconnect
 }
 
 status()
@@ -239,10 +356,12 @@ usage()
     echo
     echo ">> Usage: open3gs [option|optional]"
     echo
-    echo "status                    Status of the connection"
-    echo "connect                   Connect to the auto-detected carrier"
-    echo "disconnect                Close active connection"
-    echo "reconnect                 Finishes thw actual connection/process and try to connect again."
-    echo "help                      Display this screen"
+    echo "status, -s                    Status of the connection"
+    echo "connect, -c                   Connect to the auto-detected carrier"
+    echo "disconnect, -d                Close active connection"
+    echo "reconnect, -n                 Finishes the actual connection/process and try to connect again."
+    echo "reconfigure, -r               Detect the modem and APN and build the default configuration file."
+    echo "aways, -a                     Always detect modem, APN, configure the modem and dial."
+    echo "help, -h                      Display this screen"
     echo
 }

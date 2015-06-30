@@ -21,32 +21,40 @@ $ECHO
 
 # Options
 case "$1" in
-    status)
+    "status"|"-s")
         status
         retval=$?
         ;;
-    start)
+    "start"|"-c")
         connect
         retval=$?
         ;;
-    stop)
+    "stop"|"-d")
         disconnect
         retval=$?
         ;;
-    restart)
+    "restart"|"-n")
         reconnect
         retval=$?
         ;;
-    setup)
+    "reconfigure"|"-r")
+        reconfigure
+        retval=$?
+        ;;
+    "aways"|"-a")
+        connect 1
+        retval=$?
+        ;;
+    "setup"|"-i")
         setup
         retval=$?
         ;;
-    help)
+    "help"|"-h")
         usage
         retval=1
         ;;
     *)
-        connStart
+        usage
         retval=$?
 esac
 
