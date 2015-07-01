@@ -22,7 +22,7 @@ checkDependencies()
     do
         if [ ! $(/usr/bin/which $dep) ];
         then
-            $ECHO "Dependency no found: $dep"
+            $ECHO "ERROR: Dependency no found: $dep"
             retval=1
         fi
     done
