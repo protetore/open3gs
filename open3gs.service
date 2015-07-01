@@ -11,8 +11,9 @@ After=dev-gsmmodem.device
 Type=oneshot
 RemainAfterExit=yes
 #ExecStart=/usr/bin/wvdial -C /specta/open3gs/default.conf
-ExecStart=/specta/open3gs/open3gs
-ExecStop=-/usr/bin/wvdial
+#ExecStop=-/usr/bin/wvdial
+ExecStart=/specta/open3gs/open3gs start
+ExecStop=-/specta/open3gs/open3gs stop
 KillMode=none
 
 [Install]

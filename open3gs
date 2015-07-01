@@ -22,7 +22,7 @@ $ECHO
 # Options
 case "$1" in
     "status"|"-s")
-        status
+        connStatus
         retval=$?
         ;;
     "start"|"-c")
@@ -39,6 +39,10 @@ case "$1" in
         ;;
     "reconfigure"|"-r")
         reconfigure
+        retval=$?
+        ;;
+    "force"|"-f")
+        reconfigure $2
         retval=$?
         ;;
     "aways"|"-a")

@@ -46,6 +46,8 @@ modemAttached()
         return 1;
     fi
 
+    MODEM=/dev/$attachedDevice
+
     return 0;
 }
 
@@ -103,20 +105,28 @@ reconfigure()
 {
     retval=0
 
-    $ECHO "@ Checking modem..."
-    checkModem
-    if [ "$?" == "1" ];
+    if [ ! "$1" ==  "" ];
     then
-        exit 1
+        $ECHO "@ Loadind specific config..."
+        confFile=$1
+    else
+        $ECHO "@ Checking modem..."
+        checkModem
+        if [ "$?" == "1" ];
+        then
+            exit 1
+        fi
+
+        confFile=$BASE_DIR/$PROVIDERS_DIR/$OP.conf
     fi
 
     $RM -f $BASE_DIR/$WVDIAL_DIR/default.conf
     $RM -f $BASE_DIR/$CONF_DIR/chat_default.conf
     $RM -f $BASE_DIR/$CONF_DIR/ppp_default.conf
 
-    if [ ! -f $BASE_DIR/$PROVIDERS_DIR/$OP.conf ];
+    if [ \( ! -f $confFile \) -a \( ! -f $BASE_DIR/$PROVIDERS_DIR/$confFile \) ];
     then
-        $ECHO "ERROR: Config file $BASE_DIR/$PROVIDERS_DIR/$OP.conf not found!"
+        $ECHO "ERROR: Config file $confFile not found!"
         exit 1;
     fi
 
@@ -127,40 +137,45 @@ reconfigure()
     #    echo $conf
     #done
 
-    APN=$($GREP -m 1 APN "$BASE_DIR/$PROVIDERS_DIR/$OP.conf" | $SED '/^#.*$/d; s/APN=//')
-    USR=$($GREP -m 1 USR "$BASE_DIR/$PROVIDERS_DIR/$OP.conf" | $SED '/^#.*$/d; s/USR=//')
-    PWD=$($GREP -m 1 PWD "$BASE_DIR/$PROVIDERS_DIR/$OP.conf" | $SED '/^#.*$/d; s/PWD=//')
-    ATD=$($GREP -m 1 ATD "$BASE_DIR/$PROVIDERS_DIR/$OP.conf" | $SED '/^#.*$/d; s/ATD=//')
-    COD=$($GREP -m 1 COD "$BASE_DIR/$PROVIDERS_DIR/$OP.conf" | $SED '/^#.*$/d; s/COD=//')
+    APN=$($GREP -m 1 APN "$confFile" | $SED '/^#.*$/d; s/APN=//')
+    USR=$($GREP -m 1 USR "$confFile" | $SED '/^#.*$/d; s/USR=//')
+    PWD=$($GREP -m 1 PWD "$confFile" | $SED '/^#.*$/d; s/PWD=//')
+    ATD=$($GREP -m 1 ATD "$confFile" | $SED '/^#.*$/d; s/ATD=//')
+    COD=$($GREP -m 1 COD "$confFile" | $SED '/^#.*$/d; s/COD=//')
 
-    if [ $APN == "" ];
+    if [ "$APN" == "" ];
     then
-        $ECHO "ERROR: No APN (apn url) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No APN (apn url) setting in $confFile!"
         retval=1
     fi
 
-    if [ $USR == "" ];
+    if [ "$USR" == "" ];
     then
-        $ECHO "ERROR: No USR (user) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No USR (user) setting in $confFile!"
         retval=1
     fi
 
-    if [ $PWD == "" ];
+    if [ "$PWD" == "" ];
     then
-        $ECHO "ERROR: No PWD (password) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No PWD (password) setting in $confFile!"
         retval=1
     fi
 
-    if [ $ATD == "" ];
+    if [ "$ATD" == "" ];
     then
-        $ECHO "ERROR: No ATD (phone to dial) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No ATD (phone to dial) setting in $confFile!"
         retval=1
     fi
 
-    if [ $COD == "" ];
+    if [ "$COD" == "" ];
     then
-        $ECHO "ERROR: No COD (operator code) setting in $BASE_DIR/$PROVIDERS_DIR/$OP.conf!"
+        $ECHO "ERROR: No COD (operator code) setting in $confFile!"
         retval=1
+    fi
+
+    if [ "$retval" == "1" ];
+    then
+        exit 1
     fi
 
     if [ ! -f $BASE_DIR/$CONF_DIR/pppd.conf ];
@@ -179,7 +194,7 @@ reconfigure()
     fi
 
     CHAT_OPTS=$($CAT $BASE_DIR/$CONF_DIR/chat.conf | $TR '\n' ' ')
-    CHAT_OPTS=$($ECHO $CHAT_OPTS | $SED "s/__APN__/$APN/g" | $SED "s/__PHN__/$ATD/g")
+    CHAT_OPTS=$($ECHO $CHAT_OPTS | $SED "s/__APN__/$APN/g" | $SED "s/__ATD__/$ATD/g")
 
     $ECHO $CHAT_OPTS > $BASE_DIR/$CONF_DIR/chat_default.conf
     $ECHO $PPP_OPTS > $BASE_DIR/$CONF_DIR/ppp_default.conf
@@ -215,8 +230,9 @@ reconfigure()
 
     WVDIAL_OPTS=$($CAT $BASE_DIR/$WVDIAL_DIR/template.conf)
     WVDIAL_OPTS=$($ECHO $WVDIAL_OPTS | $SED "s|__MODEM__|$MODEM|g" | $SED "s/__USR__/$USR/g" | $SED "s/__PWD__/$PWD/g" | $SED "s/__APN__/$APN/g" | $SED "s/__ATD__/$ATD/g")
-    $ECHO $WVDIAL_OPTS > $BASE_DIR/$WVDIAL_DIR/default.conf;
+    $ECHO "$WVDIAL_OPTS" > $BASE_DIR/$WVDIAL_DIR/default.conf;
 
+    $ECHO "@ Finished configuring."
     return $retval;
 }
 
@@ -296,11 +312,11 @@ connect()
         exit 1
     fi
 
-    #checkModem
-    #if [ ! $? ];
-    #then
-    #    exit 1
-    #fi
+    modemAttached
+    if [ "$?" == "1" ];
+    then
+        exit 1
+    fi
 
     if [ "$1" == "1" ];
     then
@@ -319,11 +335,13 @@ connect()
     fi
 
     $ECHO "@ Activating modem..."
-    $chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
-    $pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
+    chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
+    pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
 
-    $PPPD $pppdOpts "$chatOpts"
-    sleep 3
+    chatOpts=$($ECHO $chatOpts | $SED 's/\"/\\\"/g')
+    #echo "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
+    eval "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
+    sleep 5
     $KILLALL -9 pppd
 
     $ECHO "@ Dialing..."
@@ -346,7 +364,7 @@ reconnect()
     reconnect
 }
 
-status()
+connStatus()
 {
 
 }
