@@ -71,15 +71,22 @@ checkModem()
     MODEM=/dev/$attachedDevice
 
     # Connect to the modem and capture the apn
+    # Initialize modem
+    $STTY -F $MODEM 9600
     # Listen to its output
-    $CAT $MODEM | $GREP "+COPS:" | $AWK -F"," '{ print $3 }' | $SED -e 's/"//g' > $LOG_DIR/modem.out &
+    $RM -f $LOG_DIR/modem.out
+    $CAT $MODEM > $LOG_DIR/modem.out &
+    catPid=$?
     # Send some basic commands
-    $CHAT -V -s '' 'AT' '' 'AT+CFUN=1' '' 'AT+COPS=3,0' '' 'AT+COPS?' '' > $MODEM < $MODEM
-    sleep 1;
-    # Kill chat session
-    $KILLALL -9 cat
-    # Reading modem response
+    $ECHO "AT" > $MODEM
+    $ECHO "AT+CFUN=1" > $MODEM
+    $ECHO "AT+COPS=3,0" > $MODEM
+    $ECHO "AT+COPS?" > $MODEM
+    # Kill cat session
+    $KILL $catPid
+    # Read modem response
     apnCode=$($CAT $LOG_DIR/modem.out)
+    apnCode=$($ECHO "$apnCode" | $GREP "+COPS:" | $AWK -F"," '{ print $3 }' | $SED -e 's/"//g')
 
     if [ "$apnCode" == "" ];
     then
@@ -304,6 +311,97 @@ install()
     usage
 }
 
+initConn()
+{
+    $ECHO "@ Activating modem..."
+    # Initialize modem
+    $STTY -F $MODEM 9600
+    # Listen to its output
+    $RM -f $LOG_DIR/modem.out
+    $CAT $MODEM > $LOG_DIR/modem.out &
+    catPid=$?
+    # Send some basic commands
+    $ECHO "AT" > $MODEM
+    $ECHO "AT+CFUN=1" > $MODEM
+    # Kill cat session
+    $KILL $catPid
+
+    $ECHO "@ Setting up first modem connection..."
+    # Calling pppd to initialize whatever is needed by the modem
+    chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
+    pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
+    chatOpts=$($ECHO $chatOpts | $SED 's/\"/\\\"/g')
+
+    #eval "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
+    command=($PPPD $pppdOpts "\"$CHAT -v $chatOpts\"")
+    "${command[@]}"
+    cmdPid=$!
+    sleep 5
+    $KILL -9 $cmdPid
+
+    return 0
+}
+
+wvdial()
+{
+    if [ ! -f $BASE_DIR/$WVDIAL_DIR/default.conf ];
+    then
+        $ECHO "ERROR: WVDial default.conf config file not found. Run 'open3gs -r' or 'open3gs -i'. (3)"
+        exit 1
+    else
+        $ECHO "INFO: Using default wvdial file. You can reconfigure with 'open3gs -r'."
+    fi
+
+    initConn
+
+    $ECHO "@ Dialing..."
+    nohup $WVDIAL -C $BASE_DIR/$WVDIAL_DIR/default.conf > $LOG_DIR/open3gs.log 2>&1 &
+
+    return 0
+}
+
+openDial()
+{
+    initConn
+
+    # Calling pppd to initialize whatever is needed by the modem
+    chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
+    pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
+    chatOpts=$($ECHO $chatOpts | $SED 's/\"/\\\"/g')
+
+    #eval "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
+    command=($PPPD $pppdOpts "\"$CHAT -v $chatOpts\"")
+    "${command[@]}"
+    cmdPid=$!
+
+    nohup connWatcher $cmdPid > $LOG_DIR/open3gs.log 2>&1 &
+
+    exit 0
+}
+
+connWatcher()
+{
+    if [ "$1" == "" ];
+    then
+        $ECHO "ERROR: No PID to watch. Exiting now..."
+        exit 1
+    fi
+
+    while :
+    do
+        procNum=$($PS -ef | $GREP -v "grep" | $GREP "$1" | $GREP "pppd" | $WC -l)
+
+        if [ $procNum -eq 0 ];
+        then
+            $ECHO "INFO: pppd process (PID $1) not found. Dialing again..."
+            openDial
+            exit 0
+        fi
+
+        sleep 3
+    done
+}
+
 connect()
 {
     checkDependencies
@@ -336,25 +434,26 @@ connect()
         fi
     fi
 
-    if [ ! -f $BASE_DIR/$WVDIAL_DIR/default.conf ];
+    if [ ! -f $BASE_DIR/$CONF_DIR/chat_default.conf ];
     then
-        $ECHO "INFO: No default config file found. Run 'open3gs -r' or 'open3gs -i'."
-    else
-        $ECHO "INFO: Using default wvdial file. You can reconfigure with 'open3gs -r'."
+        $ECHO "ERROR: Config file not found. Run 'open3gs -r' or 'open3gs -i'. (1)"
+        exit 1
     fi
 
-    $ECHO "@ Activating modem..."
-    chatOpts=$($CAT $BASE_DIR/$CONF_DIR/chat_default.conf)
-    pppdOpts=$($CAT $BASE_DIR/$CONF_DIR/ppp_default.conf)
+    if [ ! -f $BASE_DIR/$CONF_DIR/ppp_default.conf ];
+    then
+        $ECHO "ERROR: Config file not found. Run 'open3gs -r' or 'open3gs -i'. (2)"
+        exit 1
+    fi
 
-    chatOpts=$($ECHO $chatOpts | $SED 's/\"/\\\"/g')
-    #echo "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
-    eval "$PPPD $pppdOpts \"$CHAT -v $chatOpts\""
-    sleep 5
-    $KILLALL -9 pppd
-
-    $ECHO "@ Dialing..."
-    nohup $WVDIAL -C $BASE_DIR/$WVDIAL_DIR/default.conf > $LOG_DIR/open3gs.log 2>&1 &
+    if [ "$3" == "0" ];
+    then
+        $ECHO "@ Using experimental connection mode (no third party dialer)..."
+        openDial
+    else
+        $ECHO "@ Using wvdial to control connection.."
+        wvdial
+    fi
 
     $ECHO "@ Connection active. Output can be found in $LOG_DIR/open3gs.log"
 }
@@ -364,6 +463,10 @@ disconnect()
     $ECHO "@ Stopping active connection..."
     $KILLALL -9 wvdial
     $KILLALL -9 pppd
+
+    scriptName=$(basename "$0")
+    procPid=$($PS -ef | $GREP -v "grep" | $GREP "$scriptName" | $AWK '{ print $2 }')
+    $KILL -9 $procPid
 }
 
 reconnect()
@@ -372,7 +475,7 @@ reconnect()
     disconnect
     sleep 2
     $ECHO "@ Reconnecting..."
-    connect $1 $2
+    connect $1 $2 $3
 }
 
 connStatus()
@@ -392,6 +495,7 @@ usage()
     echo " -r         Finishes the actual connection/process and try to connect again."
     echo " -n         Detect the modem and APN and build the default configuration file."
     echo " -a         Always detect modem, APN, configure the modem when dialing. (Use with the -c option)"
+    echo " -e         Experimental dialing option. Don't use wvdial or other third party tools, use only pppd and basic linux tools."
     echo " -f         Force to use a specific config file. (Use with -n or -c options)."
     echo " -h         Display this screen"
     echo

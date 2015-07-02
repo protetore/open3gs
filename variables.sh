@@ -3,7 +3,7 @@
 PROVIDERS_DIR="providers.d"
 CONF_DIR="conf.d"
 WVDIAL_DIR="wvdial.d"
-DEPENDENCIES=(wvdial,pppd,usb_modeswitch,chat)
+DEPENDENCIES=(wvdial,pppd,usb_modeswitch,chat,stty)
 LOG_DIR=/var/log/open3gs
 
 OP=""
@@ -12,18 +12,22 @@ CHAT_OPTS="-v TIMEOUT 300 ABORT \"BUSY\" ABORT \"NO DIALTONE\" ABORT \"NO CARRIE
 PPP_OPTS="-d __MODEM__ 460800 noauth persist defaultroute noipdefault usepeerdns nodeflate refuse-pap user __USR__ password __PWD__ connect"
 
 # EXEC
-CAT=$(/usr/bin/which cat)
-ECHO=$(/usr/bin/which echo)
-GREP=$(/usr/bin/which grep)
-SED=$(/usr/bin/which sed)
-HEAD=$(/usr/bin/which head)
-AWK=$(/usr/bin/which awk)
-RM=$(/usr/bin/which rm)
-PRINTF=$(/usr/bin/which printf)
-LN=$(/usr/bin/which ln)
-TR=$(/usr/bin/which tr)
-MKDIR=$(/usr/bin/which mkdir)
-CHAT=$(/usr/bin/which chat)
-KILLALL=$(/usr/bin/which killall)
-WVDIAL=$(/usr/bin/which wvdial)
-PPPD=$(/usr/bin/which pppd)
+CAT=$(which cat)
+ECHO=$(which echo)
+GREP=$(which grep)
+SED=$(which sed)
+HEAD=$(which head)
+AWK=$(which awk)
+RM=$(which rm)
+PRINTF=$(which printf)
+LN=$(which ln)
+TR=$(which tr)
+PS=$(which ps)
+WC=$(which wc)
+MKDIR=$(which mkdir)
+CHAT=$(which chat)
+STTY=$(which stty)
+KILLALL=$(which killall)
+KILL=$(which kill)
+WVDIAL=$(which wvdial)
+PPPD=$(which pppd)

@@ -30,6 +30,7 @@ FUNCTIONS[h]="help"
 
 functionName=""
 aways=1
+experimental=1
 configPath=""
 
 while getopts ":cdrsinhaf:" opt; do
@@ -39,6 +40,9 @@ while getopts ":cdrsinhaf:" opt; do
       ;;
     a)
       aways=0
+      ;;
+    e)
+      experimental=0
       ;;
     f)
       configPath=$OPTARG
@@ -56,7 +60,7 @@ done
 # Options
 case "$functionName" in
     "connect")
-        connect $aways $configPath
+        connect $aways $configPath $experimental
         retval=$?
         ;;
     "disconnect")
@@ -64,7 +68,7 @@ case "$functionName" in
         retval=$?
         ;;
     "reconnect")
-        reconnect $aways $configPath
+        reconnect $aways $configPath $experimental
         retval=$?
         ;;
     "status")
