@@ -19,41 +19,67 @@ $ECHO
 $ECHO "~~~ Open3G Shell Connector ~~~"
 $ECHO
 
+typeset -A FUNCTIONS
+FUNCTIONS[c]="connect"
+FUNCTIONS[d]="disconnect"
+FUNCTIONS[r]="reconnect"
+FUNCTIONS[s]="status"
+FUNCTIONS[i]="install"
+FUNCTIONS[n]="reconfigure"
+FUNCTIONS[h]="help"
+
+functionName=""
+aways=1
+configPath=""
+
+while getopts ":cdrsinhaf:" opt; do
+  case $opt in
+    c)
+      functionName=${FUNCTIONS[$opt]}
+      ;;
+    a)
+      aways=0
+      ;;
+    f)
+      configPath=$OPTARG
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
 # Options
-case "$1" in
-    "status"|"-s")
-        connStatus
+case "$functionName" in
+    "connect")
+        connect $aways $configPath
         retval=$?
         ;;
-    "start"|"-c")
-        connect
-        retval=$?
-        ;;
-    "stop"|"-d")
+    "disconnect")
         disconnect
         retval=$?
         ;;
-    "restart"|"-n")
-        reconnect
+    "reconnect")
+        reconnect $aways $configPath
         retval=$?
         ;;
-    "reconfigure"|"-r")
-        reconfigure
+    "status")
+        connStatus
         retval=$?
         ;;
-    "force"|"-f")
-        reconfigure $2
+    "reconfigure")
+        reconfigure $configPath
         retval=$?
         ;;
-    "aways"|"-a")
-        connect 1
+    "install")
+        install
         retval=$?
         ;;
-    "setup"|"-i")
-        setup
-        retval=$?
-        ;;
-    "help"|"-h")
+    "help")
         usage
         retval=1
         ;;

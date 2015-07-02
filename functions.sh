@@ -236,7 +236,7 @@ reconfigure()
     return $retval;
 }
 
-setup()
+install()
 {
     $ECHO "@ SETUP"
     $ECHO "@ Checking dependencies..."
@@ -318,9 +318,18 @@ connect()
         exit 1
     fi
 
-    if [ "$1" == "1" ];
+    if [ "$1" == "0" ];
     then
         reconfigure
+        if [ ! $? ];
+        then
+            exit 1
+        fi
+    fi
+
+    if [ ! "$2" == "" ];
+    then
+        reconfigure $2
         if [ ! $? ];
         then
             exit 1
@@ -359,14 +368,16 @@ disconnect()
 
 reconnect()
 {
+    $ECHO "@ Disconnecting..."
     disconnect
-    sleep 1
-    reconnect
+    sleep 2
+    $ECHO "@ Reconnecting..."
+    connect $1 $2
 }
 
 connStatus()
 {
-
+    $ECHO "Work in progress.."
 }
 
 usage()
@@ -374,12 +385,23 @@ usage()
     echo
     echo ">> Usage: open3gs [option|optional]"
     echo
-    echo "status, -s                    Status of the connection"
-    echo "connect, -c                   Connect to the auto-detected carrier"
-    echo "disconnect, -d                Close active connection"
-    echo "reconnect, -n                 Finishes the actual connection/process and try to connect again."
-    echo "reconfigure, -r               Detect the modem and APN and build the default configuration file."
-    echo "aways, -a                     Always detect modem, APN, configure the modem and dial."
-    echo "help, -h                      Display this screen"
+    echo " -i         First step: create link to bin, logs dir, configure logrotate, detect modem, carrier..."
+    echo " -s         Status of the connection"
+    echo " -c         Connect to the auto-detected carrier"
+    echo " -d         Close active connection"
+    echo " -r         Finishes the actual connection/process and try to connect again."
+    echo " -n         Detect the modem and APN and build the default configuration file."
+    echo " -a         Always detect modem, APN, configure the modem when dialing. (Use with the -c option)"
+    echo " -f         Force to use a specific config file. (Use with -n or -c options)."
+    echo " -h         Display this screen"
+    echo
+    echo "---------"
+    echo "Examples: "
+    echo "---------"
+    echo "open3gs -c -f                                    #connect using settings created by 'open3gs -i' or 'open3gs -n'"
+    echo "open3gs -c -f /opt/open3gs/providers.d/oi.conf   #connect using specific config file"
+    echo "open3gs -c -a                                    #aways try to detect carrier and modem when dialing"
+    echo "open3gs -n                                       #config open3gs auto-detecting settings"
+    echo "open3gs -n -f /opt/open3gs/providers.d/oi.conf   #config open3gs to use specific config file"
     echo
 }
