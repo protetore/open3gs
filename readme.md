@@ -5,7 +5,7 @@ Based on the Open3G project. This script was written to allow an embedded Linux 
 #Required Packages
 
 1. pppd
-2. wvdial [optional use]
+2. wvdial **[optional use]**
 3. usb_modeswitch
 4. chat
 5. stty
