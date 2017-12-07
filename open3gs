@@ -12,7 +12,7 @@
 #=============================================================
 
 BASE_DIR=$(dirname $(/bin/readlink -f $0))
-#. $BASE_DIR/variables.sh
+. $BASE_DIR/variables.sh
 . $BASE_DIR/functions.sh
 
 $ECHO
@@ -28,16 +28,14 @@ FUNCTIONS[i]="install"
 FUNCTIONS[n]="reconfigure"
 FUNCTIONS[h]="help"
 
-functionName=""
+functionName=$1
 aways=1
 experimental=1
 configPath=""
+pidFile="${PID_DIR}/open3gs.pid"
 
-while getopts ":cdrsinhaf:" opt; do
+while getopts ":aef:p:" opt; do
   case $opt in
-    c)
-      functionName=${FUNCTIONS[$opt]}
-      ;;
     a)
       aways=0
       ;;
@@ -47,11 +45,19 @@ while getopts ":cdrsinhaf:" opt; do
     f)
       configPath=$OPTARG
       ;;
+    p)
+      if [ ! -d $(basename $OPTARG) ]; then
+        echo "Directory $OPTARG for PID file does not exists" >&2
+        exit 1
+      fi
+      pidFile=$OPTARG
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
+      exit 1
       ;;
     :)
-      echo "Option -$OPTARG requires an argument." >&2
+      echo "Option -$OPTARG requires an argument" >&2
       exit 1
       ;;
   esac
@@ -88,6 +94,7 @@ case "$functionName" in
         retval=1
         ;;
     *)
+        echo "Wrong command!"
         usage
         retval=$?
 esac
