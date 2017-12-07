@@ -1,8 +1,8 @@
-#open3gs
+# open3gs
 
 Based on the Open3G project. This script was written to allow an embedded Linux system using Raspberry PI to connect to the Internet using a 3G modem. It can handle disconnection, can auto detect APN and optionally can use wvdial to handle the connection. 
 
-#Required Packages
+# Required Packages
 
 1. pppd
 2. wvdial **[optional use]**
@@ -11,9 +11,9 @@ Based on the Open3G project. This script was written to allow an embedded Linux 
 5. stty
 
 
-#Usage
+# Usage
 
-##Command:
+## Command:
 
 **open3gs [options]**
 
@@ -30,7 +30,7 @@ Based on the Open3G project. This script was written to allow an embedded Linux 
 |   -f    |    *Force to use a specific config file. (Use with -n or -c options).*                       |
 |   -h    |    *Display this screen*                                                                     |
 
-##Examples:
+## Examples:
 
 ```
 open3gs -c -f                                    #connect using settings created by 'open3gs -i' or 'open3gs -n'
@@ -40,7 +40,7 @@ open3gs -n                                       #config open3gs auto-detecting 
 open3gs -n -f /opt/open3gs/providers.d/oi.conf   #config open3gs to use specific config file
 ```
 
-#Reminders
+# Reminders
 
 1. Sample pppd:
 ```
